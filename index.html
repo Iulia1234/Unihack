@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Water Quality Checker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(circle at center, #0b0f1e, #000);
+        font-family: "Poppins", sans-serif;
+        color: white;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .container {
+        width: 380px;
+        padding: 30px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 0 25px rgba(0, 162, 255, 0.5);
+        backdrop-filter: blur(12px);
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 26px;
+        margin-bottom: 25px;
+        color: #4fd1ff;
+    }
+
+    label {
+        font-weight: 600;
+        margin-top: 12px;
+        display: block;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 10px;
+        border: none;
+        margin-top: 5px;
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 25px;
+        padding: 12px;
+        font-size: 18px;
+        border: none;
+        border-radius: 12px;
+        background: #00aaff;
+        color: black;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    button:hover {
+        background: #33cfff;
+        transform: translateY(-2px);
+    }
+
+    #resultBox {
+        margin-top: 25px;
+        padding: 15px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.12);
+        display: none;
+        text-align: center;
+        font-size: 18px;
+    }
+
+    .good { color: #4fff8b; font-weight: 700; }
+    .bad  { color: #ff4f4f; font-weight: 700; }
+</style>
+
+</head>
+<body>
+
+<div class="container">
+    <h1>💧 Water Quality Checker</h1>
+
+    <label>pH</label>
+    <input id="ph" type="number" step="0.1" value="7.2">
+
+    <label>Conductivity (µS/cm)</label>
+    <input id="conductivity" type="number" value="400">
+
+    <label>Hardness (mg/L)</label>
+    <input id="hardness" type="number" value="150">
+
+    <button onclick="analyze()">Analyze Water</button>
+
+    <div id="resultBox"></div>
+</div>
+
+<script>
+async function analyze() {
+    let payload = {
+        ph: parseFloat(document.getElementById("ph").value),
+        conductivity: parseFloat(document.getElementById("conductivity").value),
+        hardness: parseFloat(document.getElementById("hardness").value)
+    };
+
+    let resultBox = document.getElementById("resultBox");
+    resultBox.style.display = "block";
+    resultBox.innerHTML = "⏳ Analyzing...";
+
+    try {
+        const res = await fetch("http://localhost:5000/predict", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+            resultBox.innerHTML = "<span class='bad'>Server Error</span>";
+            return;
+        }
+
+        resultBox.innerHTML = `
+            <div class="${data.isPotable ? "good" : "bad"}">
+                ${data.isPotable ? "✓ Water is POTABLE" : "⚠ Water is NOT safe"}
+            </div>
+            <br>
+            Confidence: ${data.confidence}% <br>
+            UV Status: ${data.uv.status} <br>
+            UV Efficiency: ${data.uv.efficiency} log
+        `;
+
+    } catch (err) {
+        resultBox.innerHTML = "<span class='bad'>Cannot reach server</span>";
+    }
+}
+</script>
+
+</body>
+</html>
