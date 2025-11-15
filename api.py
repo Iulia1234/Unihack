@@ -21,7 +21,7 @@ pot_model = joblib.load("model_potability.pkl")
 print("Modele incarcate cu succes!")
 
 
-@app.route('/predict', methods=['POST'])
+@app.route('/predict', methods=['GET', 'POST'])
 def predict():
     try:
         data = request.json
