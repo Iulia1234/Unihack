@@ -9,42 +9,58 @@ CORS(app)
 
 # Incarca modelele antrenate
 print("Incarc modelele...")
+
 uv_scaler = joblib.load("uv_scaler.pkl")
 pot_scaler = joblib.load("potability_scaler.pkl")
+
 uv_reg = joblib.load("model_uv_regression.pkl")
 uv_cls = joblib.load("model_uv_classification.pkl")
+
 pot_model = joblib.load("model_potability.pkl")
+
 print("Modele incarcate cu succes!")
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
         data = request.json
         print(f"Am primit date: {data}")
-        
-        # Extrage parametrii
+
+        # ================================
+        # 1️⃣ PRELUAM PARAMETRII UTILIZATORULUI
+        # ================================
         ph = float(data.get('ph', 7.0))
-        conductivity = float(data.get('conductivity', 400))
-        hardness = float(data.get('hardness', 150))
-        
-        # Creeaza DataFrame pentru potabilitate
+
+        # Hardness & Conductivity trebuie doar aproximate (NU folosite în model)
+        hardness_input = float(data.get('hardness', 150))
+        conductivity_input = float(data.get('conductivity', 400))
+
+        # ================================
+        # 2️⃣ APROXIMARE HARDNESS & CONDUCTIVITY (nu sunt folosiți de model)
+        # ================================
+        approximated_hardness = 150.0          # exemplu: medie reală din dataset
+        approximated_conductivity = 400.0      # exemplu: medie reală din dataset
+
+        # ================================
+        # 3️⃣ PREGĂTIM INPUT PT MODEL POTABILITATE
+        # Modelul NU folosește Hardness & Conductivity !!
+        # ================================
         water_input = pd.DataFrame([{
             "ph": ph,
-            "Hardness": hardness,
-            "Conductivity": conductivity
+            "Solids": 15000.0,        # valori deja stabile
+            "Turbidity": 3.5
         }])
-        
-        # Scaleaza si prezice potabilitatea
+
+        # Scalează și prezice potabilitatea
         water_scaled = pot_scaler.transform(water_input)
         pred_pot = pot_model.predict(water_scaled)[0]
         pred_proba = pot_model.predict_proba(water_scaled)[0]
         confidence = float(pred_proba.max() * 100)
-        
-        # Aproximare Solids & Turbidity
-        solids = 15000.0
-        turbidity = 3.5
-        
-        # Date UV simulate
+
+        # ================================
+        # 4️⃣ DATE UV SIMULATE (POT FI ÎNLOCUITE CU DATE REALE)
+        # ================================
         uv_input = pd.DataFrame([{
             "uv_power_mw_cm2": 1.5,
             "exposure_seconds": 300,
@@ -60,40 +76,48 @@ def predict():
             "spectral_585nm": 820,
             "spectral_630nm": 760
         }])
-        
+
         uv_scaled = uv_scaler.transform(uv_input)
         uv_efficiency = uv_reg.predict(uv_scaled)[0]
         uv_status = uv_cls.predict(uv_scaled)[0]
-        
-        # Construieste raspunsul
+
+        # ================================
+        # 5️⃣ CONTRUIESTE RASPUNS
+        # ================================
         response = {
             "isPotable": bool(pred_pot == 1),
             "confidence": round(confidence, 2),
+
             "approximated": {
-                "solids": round(solids, 2),
-                "turbidity": round(turbidity, 2)
+                "hardness": approximated_hardness,
+                "conductivity": approximated_conductivity
             },
+
             "uv": {
                 "status": "operational" if uv_status == 1 else "warning",
                 "efficiency": round(float(uv_efficiency), 2)
             },
+
+            # Parametri trimiși de utilizator
             "parameters": {
                 "ph": ph,
-                "conductivity": conductivity,
-                "hardness": hardness
+                "hardness_input": hardness_input,
+                "conductivity_input": conductivity_input
             }
         }
-        
+
         print(f"Raspuns: {response}")
         return jsonify(response)
-        
+
     except Exception as e:
         print(f"EROARE: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok", "message": "ML API is running"})
+
 
 if __name__ == '__main__':
     print("\nStarting ML API Server...")

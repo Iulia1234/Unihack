@@ -19,17 +19,19 @@ def load_uv_data(path):
 def load_potability_data(path):
     df = pd.read_csv(path)
 
-    # === Aproximare Solids & Turbidity ===
-    solids_mean = df["Solids"].mean()
-    turb_mean = df["Turbidity"].mean()
+    # === Aproximare Hardness & Conductivity ===
+    hardness_mean = df["Hardness"].mean()
+    conductivity_mean = df["Conductivity"].mean()
 
-    df["Solids"] = solids_mean
-    df["Turbidity"] = turb_mean
+    df["Hardness"] = hardness_mean
+    df["Conductivity"] = conductivity_mean
 
-    # Scoatem complet parametrii din model
-    X = df.drop(columns=["Potability", "Solids", "Turbidity"])
+    # Scoatem complet acesti parametri din model (modelul nu îi folosește)
+    X = df.drop(columns=["Potability", "Hardness", "Conductivity"])
     y = df["Potability"]
+
     return X, y
+
 
 
 
